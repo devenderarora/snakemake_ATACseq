@@ -26,20 +26,37 @@ genome_size = config.get("genome_size")
 if not genome_size:
     raise ValueError("Missing 'genome_size' in config.")
 
+fastqc_raw_dir = config.get("fastqc_raw", "fastqc_raw").rstrip("/")
+fastqc_trimmed_dir = config.get("fastqc_trimmed", "fastqc_trimmed").rstrip("/")
+
 for directory in [
     config["raw_bam"],
     config["sorted_bam"],
     config["clean_bam"],
     config["bedfiles"],
     config["peakcalling"],
-    trimmed_dir
+    trimmed_dir,
+    fastqc_raw_dir,
+    fastqc_trimmed_dir
 ]:
     os.makedirs(directory, exist_ok=True)
 
-##rule all
+
+#rule all: include peakcalling and FastQC reports
+
 rule all:
     input:
-        expand(os.path.join(config["peakcalling"], "{sample}_peaks.narrowPeak"), sample=SAMPLES)
+        # Peak calling outputs
+        expand(os.path.join(config["peakcalling"], "{sample}_peaks.narrowPeak"), sample=SAMPLES),
+        # FastQC on raw FASTQs (using the HTML reports as a proxy)
+        expand(os.path.join(fastqc_raw_dir, "{sample}_1_fastqc.html"), sample=SAMPLES),
+        expand(os.path.join(fastqc_raw_dir, "{sample}_2_fastqc.html"), sample=SAMPLES),
+        # FastQC on trimmed FASTQs
+        expand(os.path.join(fastqc_trimmed_dir, "{sample}_1_fastqc.html"), sample=SAMPLES),
+        expand(os.path.join(fastqc_trimmed_dir, "{sample}_2_fastqc.html"), sample=SAMPLES)
+
+
+#index_genome
 
 rule index_genome:
     input:
@@ -55,6 +72,26 @@ rule index_genome:
         fi
         bowtie2-build {input} {bowtie2_index_prefix}
         """
+
+
+# rule fastqc_raw: Run FastQC on the original raw FASTQ files
+
+rule fastqc_raw:
+    input:
+        r1=os.path.join(config["input_dir"], "{sample}_1.fastq.gz"),
+        r2=os.path.join(config["input_dir"], "{sample}_2.fastq.gz")
+    output:
+        html1=os.path.join(fastqc_raw_dir, "{sample}_1_fastqc.html"),
+        zip1=os.path.join(fastqc_raw_dir, "{sample}_1_fastqc.zip"),
+        html2=os.path.join(fastqc_raw_dir, "{sample}_2_fastqc.html"),
+        zip2=os.path.join(fastqc_raw_dir, "{sample}_2_fastqc.zip")
+    log:
+        os.path.join(fastqc_raw_dir, "{sample}_fastqc_raw.log")
+    shell:
+        "fastqc -o {fastqc_raw_dir} {input.r1} {input.r2} > {log} 2>&1"
+
+
+#trim_galore
 
 rule trim_galore:
     input:
@@ -72,6 +109,26 @@ rule trim_galore:
         mv {trimmed_dir}/{wildcards.sample}_2_val_2.fq.gz {output.r2_trimmed}
         """
 
+
+##rule fastqc_trimmed: Run FastQC on the trimmed FASTQ files
+
+rule fastqc_trimmed:
+    input:
+        r1=os.path.join(trimmed_dir, "{sample}_1_trimmed.fq.gz"),
+        r2=os.path.join(trimmed_dir, "{sample}_2_trimmed.fq.gz")
+    output:
+        html1=os.path.join(fastqc_trimmed_dir, "{sample}_1_fastqc.html"),
+        zip1=os.path.join(fastqc_trimmed_dir, "{sample}_1_fastqc.zip"),
+        html2=os.path.join(fastqc_trimmed_dir, "{sample}_2_fastqc.html"),
+        zip2=os.path.join(fastqc_trimmed_dir, "{sample}_2_fastqc.zip")
+    log:
+        os.path.join(fastqc_trimmed_dir, "{sample}_fastqc_trimmed.log")
+    shell:
+        "fastqc -o {fastqc_trimmed_dir} {input.r1} {input.r2} > {log} 2>&1"
+
+
+#rule align_reads
+
 rule align_reads:
     input:
         r1=os.path.join(trimmed_dir, "{sample}_1_trimmed.fq.gz"),
@@ -86,6 +143,9 @@ rule align_reads:
         samtools view -bS - > {output}
         """
 
+
+#bamfile sort
+
 rule sort_bam:
     input:
         os.path.join(config["raw_bam"], "{sample}.bam")
@@ -95,6 +155,8 @@ rule sort_bam:
         os.path.join(config["sorted_bam"], "{sample}.sort_bam.log")
     shell:
         "samtools sort {input} -o {output} > {log} 2>&1"
+
+#remove_duplicates
 
 rule remove_duplicates:
     input:
@@ -113,6 +175,7 @@ rule remove_duplicates:
         samtools index {output.bam} >> {log} 2>&1
         """
 
+
 rule convert_to_bed:
     input:
         os.path.join(config["clean_bam"], "{sample}.clean.bam")
@@ -123,9 +186,7 @@ rule convert_to_bed:
     shell:
         "bedtools bamtobed -i {input} > {output} 2> {log}"
 
-###########
-###A dummy rule that waits for all deduplicated BAMs before continuing
-###
+#Dummy rule to ensure all deduplicated BAMs are processed before peak calling
 rule all_deduplicated:
     input:
         expand(os.path.join(config["clean_bam"], "{sample}.clean.bam"), sample=SAMPLES)
@@ -134,7 +195,7 @@ rule all_deduplicated:
     shell:
         "touch {output}"
 
-###call_peaks: only output narrow peaks
+# rule call_peaks: Only output narrow peaks (with an optional broad peaks run)
 rule call_peaks:
     input:
         bam=os.path.join(config["clean_bam"], "{sample}.clean.bam"),
@@ -150,9 +211,9 @@ rule call_peaks:
         -q 0.01 --nomodel --shift -75 --extsize 150 --call-summits \
         --keep-dup all --outdir {config[peakcalling]} > {log} 2>&1
 
-        # If you also want broad peaks in the same run:
+        # For broad peaks:
         macs3 callpeak -t {input.bam} \
         -f BAMPE -g {genome_size} -n {wildcards.sample} \
         -q 0.01 --nomodel --shift -75 --extsize 150 \
-        --keep-dup all --broad --outdir {config[peakcalling]} > {log} 2>&1
+        --keep-dup all --broad --outdir {config[peakcalling]} >> {log} 2>&1
         """
