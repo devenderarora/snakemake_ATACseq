@@ -1,0 +1,22 @@
+input_dir: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/input/"
+fastq_dir: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/input/"
+genome_fa: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/genome/Homo_sapiens.GRCh38.dna.toplevel.fa"
+bowtie2_index_prefix: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/genome/bowtie2_index"
+raw_bam: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/raw_bam/"
+sorted_bam: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/sorted_bam/"
+clean_bam: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/clean_bam/"
+bedfiles: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/bedfiles/"
+peakcalling: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/peakcalling/"
+count: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/count/"
+trimmed_dir: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/trimmed/"
+genome_size: "hs"
+
+module: |
+  module load bioinfo biopython/3
+  module load fastqc
+  module load TrimGalore
+  module load bowtie2
+  module load samtools
+  module load bioinfo BEDTools
+  module load macs
+  module load picard-tools/3.0.0

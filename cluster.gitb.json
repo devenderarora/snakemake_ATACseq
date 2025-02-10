@@ -1,0 +1,24 @@
+{
+  "__default__": {
+    "queue"     : "bioinf",
+    "time"      : "40:00:00",
+    "nNode"     : "1",
+    "nCPUs"     : "120",
+    "mem"       : "128G",
+    "mail"      : "FAIL,BEGIN,END",
+    "name"      : "{rule}.{wildcards.sample}",  # This is fine for rules with sample
+    "output"    : "bak_err_out/{rule}.{wildcards.sample}.out",
+    "error"     : "bak_err_out/{rule}.{wildcards.sample}.err"
+  },
+  "all_deduplicated": {
+    "queue"     : "bioinf",
+    "time"      : "1:00:00",
+    "nNode"     : "1",
+    "nCPUs"     : "1",
+    "mem"       : "1G",
+    "mail"      : "FAIL,BEGIN,END",
+    "name"      : "{rule}",        # <-- No {wildcards.sample}
+    "output"    : "bak_err_out/{rule}.out",
+    "error"     : "bak_err_out/{rule}.err"
+  }
+}
