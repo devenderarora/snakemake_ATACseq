@@ -9,6 +9,7 @@ bedfiles: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/bedfiles/"
 peakcalling: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/peakcalling/"
 count: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/count/"
 trimmed_dir: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/trimmed/"
+fastqc_trimmed_dir: "/depot/bioinfo/data/Personal_Directories/arora/atac_test/fastqc_trimmed"
 genome_size: "hs"
 
 module: |
