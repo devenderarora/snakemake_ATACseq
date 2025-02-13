@@ -45,6 +45,7 @@ for directory in [
 ###############################################################################
 rule all:
     input:
+        expand(os.path.join(config["bedfiles"], "{sample}.bed"), sample=SAMPLES),
         expand(os.path.join(config["peakcalling"], "{sample}_peaks.narrowPeak"), sample=SAMPLES)
 
 rule index_genome:
